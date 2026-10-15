@@ -1,109 +1,234 @@
-#include "basics.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-DynamicArray newDynamicArray(int capacity) {
-    DynamicArray arr;
-    arr.capacity = capacity;
-    arr.size = 0;
-    arr.data = malloc(capacity * sizeof(int));
-    return arr;
+#define empty NULL
+
+typedef struct cell {
+    int head;
+    struct cell* tail;
+} *list;
+
+list add(int h, list t) {
+    list l = malloc(sizeof(struct cell));
+    l->head = h; l->tail = t;
+    return l;
 }
 
+void print_list(list l) {
+    list p = l;
+    printf("(");
+    while (p != empty) {
+        printf("%i", p->head);
+        p = p->tail;
+        if (p != empty) printf(" ");
+    }
+    printf(")\n");
+}
 
-Stack newStack(int N) {
-    Stack s;
-    s.N = N;
-    s.n = 0;
-    s.S = malloc(s.N * sizeof(int));
+int has(int v, list l) {
+    if (l == empty) return 0;
+    if (v == l->head) return 1;
+    return has(v, l->tail);
+}
+
+list inter(list l1, list l2) {
+    list l = empty;
+    list p = l1;
+    while (p != empty) {
+        if (has(p->head, l2)) l = add(p->head, l);
+        p = p->tail;
+    }
+    return l;
+}
+
+list rev(list l1) {
+    list l = empty;
+    list p = l1;
+    while (p != empty) {
+        l = add(p->head, l);
+        p = p->tail;
+    }
+    return l;
+}
+
+list cat(list l1, list l2) {
+    list l = empty;
+    list p = l1;
+    while (p != empty) {
+        l = add(p->head, l);
+        p = p->tail;
+    }
+    p = l2;
+    while (p != empty) {
+        l = add(p->head, l);
+        p = p->tail;
+    }
+    return rev(l);
+}
+
+typedef struct sstack {
+    int tab[100];
+    int ptr;
+} *stack;
+
+stack new_stack() {
+    stack s = malloc(sizeof(struct sstack));
+    s->ptr = 0;
     return s;
 }
 
-void push(Stack *s, int x) {
-    if (s->n >= s->N) {
-        printf("Stack is full\n");
-        return;
-    }
-    s->S[s->n] = x;
-    s->n++;
+void push(stack s, int x) {
+    s->tab[s->ptr] = x;
+    s->ptr++;
 }
 
-int pop(Stack *s) {
-    if (s->n == 0) {
-        printf("Stack is empty\n");
-        return -1; 
-    }
-    s->n--;
-    return s->S[s->n];
+int pop(stack s) {
+    s->ptr--;
+    return s->tab[s->ptr];
 }
 
-int peekStack(Stack *s) { 
-    if (s->n == 0) {
-        printf("Out of Stack\n");
-        return -1;
-    }
-    return s->S[s->n - 1];
+int peek(stack s) {
+    return s->tab[s->ptr - 1];
 }
 
-void enqueue(Queue *q, int x) {
-    Node *newNode = malloc(sizeof(Node));
-    if (newNode == NULL) return;
-    newNode->data = x;
-    newNode->next = NULL;
-    if (q->back == NULL) {
+void add_stack(stack s) {
+    int v2 = pop(s);
+    int v1 = pop(s);
+    push(s, v1 + v2);
+}
+void sub(stack s) {
+    int v2 = pop(s);
+    int v1 = pop(s);
+    push(s, v1 - v2);
+}
+
+void mult(stack s) {
+    int v2 = pop(s);
+    int v1 = pop(s);
+    push(s, v1 * v2);
+}
+
+void dup(stack s) {
+    int v = peek(s);
+    push(s, v);
+}
+
+void swap(stack s) {
+    int v2 = pop(s);
+    int v1 = pop(s);
+    push(s, v2);
+    push(s, v1);
+}
+
+typedef struct qqueue {
+    list front;
+    list back;
+} *queue;
+
+queue new_queue() {
+    queue q = malloc(sizeof(struct qqueue));
+    q->front = empty;
+    q->back = empty;
+    return q;
+}
+
+void enqueue(queue q, int x) {
+    list newNode = add(x, empty);
+    if (q->front == empty) {
         q->front = newNode;
         q->back = newNode;
     } else {
-        q->back->next = newNode;
+        q->back->tail = newNode;
         q->back = newNode;
     }
 }
 
-int dequeue(Queue *q) {
-    if (q->front == NULL) {
-        return -1; 
-    }
-    Node *temp = q->front;
-    int x = temp->data;
-    q->front = q->front->next;
-    if (q->front == NULL) {
-        q->back = NULL;
-    }
-    free(temp);
-    return x;
+int dequeue(queue q) {
+    int v = q->front->head;
+    q->front = q->front->tail;
+    if (q->front == empty) q->back = empty;
+    return v;
 }
 
-int peekQueue(Queue *q) { 
-    if (q->front == NULL) return -1;
-    return q->front->data;
+typedef struct darray {
+    int *data;
+    int size;
+    int capacity;
+} *array;
+
+array new_array(int cap) {
+    array a = malloc(sizeof(struct darray));
+    a->capacity = cap;
+    a->size = 0;
+    a->data = malloc(cap * sizeof(int));
+    return a;
 }
 
-HashTable newHashTable(int size) {
-    HashTable ht;
-    ht.size = size;
-    ht.buckets = calloc(size, sizeof(Node*)); 
+void insert_array(array a, int val) {
+    if (a->size >= a->capacity) {
+        a->capacity *= 2;
+        a->data = realloc(a->data, a->capacity * sizeof(int));
+    }
+    a->data[a->size] = val;
+    a->size++;
+}
+
+typedef struct htable {
+    list *buckets;
+    int size;
+} *hashtable;
+
+hashtable new_hashtable(int size) {
+    hashtable ht = malloc(sizeof(struct htable));
+    ht->size = size;
+    ht->buckets = malloc(size * sizeof(list));
+    for (int i = 0; i < size; i++) {
+        ht->buckets[i] = empty;
+    }
     return ht;
 }
 
-int Hash(char key[], int size) {
-    int sum = 0;
-    for (int i = 0; key[i] != '\0'; i++) {
-        sum = sum + key[i];
-    }
-    return sum % size;
+int hash(int key, int size) {
+    return key % size;
 }
 
-void insertHash(HashTable *ht, char key[], int value) {
-    int index = Hash(key, ht->size);
-    Node *newNode = malloc(sizeof(Node));
-    if (newNode == NULL) return;
-    newNode->data = value;
-    newNode->next = ht->buckets[index]; 
-    ht->buckets[index] = newNode;
+void insert_hash(hashtable ht, int val) {
+    int index = hash(val, ht->size);
+    ht->buckets[index] = add(val, ht->buckets[index]);
 }
 
-int main() {
-    Stack s = newStack(5);
-    push(&s, 10);
-    printf("Top of stack: %d\n", peekStack(&s));
-    
-    return 0;
+int search_hash(hashtable ht, int val) {
+    int index = hash(val, ht->size);
+    return has(val, ht->buckets[index]);
+}
+
+void main() {
+    printf("Test Lists\n");
+    list l1 = add(1, add(2, add(3, empty)));
+    list l2 = add(3, add(4, empty));
+    printf("l1: "); print_list(l1);
+    printf("l2: "); print_list(l2);
+    printf("inter: "); print_list(inter(l1, l2));
+
+    printf("Test Stack\n");
+    stack s = new_stack();
+    push(s, 10);
+    push(s, 20);
+    add_stack(s);
+    printf("Top of stack after add: %d\n", pop(s));
+
+    printf("Test Queue\n");
+    queue q = new_queue();
+    enqueue(q, 100);
+    enqueue(q, 200);
+    printf("Dequeue: %d\n", dequeue(q));
+
+    printf("Test Hash Table\n");
+    hashtable ht = new_hashtable(10);
+    insert_hash(ht, 42);
+    insert_hash(ht, 12);
+    printf("Has 42 in hash? %s\n", search_hash(ht, 42) ? "Yes" : "No");
+    printf("Has 99 in hash? %s\n", search_hash(ht, 99) ? "Yes" : "No");
+    return;
 }
